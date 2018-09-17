@@ -1,0 +1,131 @@
+hyperparameter adjustment:
+1. droup out  2. regularization 3. learning rate--exponential_decay  4. hiddern layer's perceptron number: window_length=10, hidden_dim = 10
+The conclusion: 
+After 10760 steps, the prediction accuracy of validation datasets reaches to : 0.537
+After 20000 steps, the prediction accuracy of validation datasets reaches to : 0.49
+It's found that there is a tendency that as window length extends, the accuracy fluctuates more fiercely. 
+
+
+
+1.  Introducing the regularization and learning rate--dexponential_decay:
+
+    def Architecture(self, modelDescript, modelName="Model_02"):
+        sess = tf.Session()
+
+
+        ### Model ###
+        num_step = 20000
+        # learning rate decay
+        nbatch,_, _ = self.dm.x_train.shape
+        learning_rate = tf.train.exponential_decay(0.1, num_step, nbatch, 0.9, staircase=True)
+
+        X = tf.placeholder(tf.float32, [self.dm.batch_size, self.dm.window_length, self.dm.data_dim])
+        Y = tf.placeholder(tf.float32, [self.dm.batch_size, self.dm.output_dim])
+
+        Cell = self.RNN_cell()
+        outputs, _states = tf.nn.dynamic_rnn(Cell, X, dtype=tf.float32)
+
+        Y_pred = tf.contrib.layers.fully_connected(outputs[:,-1], self.dm.output_dim, activation_fn=None)  # We only interest the last output value
+
+        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=Y_pred,labels=Y))
+        # loss = tf.reduce_mean(tf.square(Y_pred - Y))
+
+        # To fix the over fitting problem, introduce the L2 regularization to the loss functio
+        #regularization_rate=0.1
+        #regularizer=tf.contrib.layers.l2_regularizer(regularization_rate)
+        #regulation=tf.contrib.layers.apply_regularization(regularizer,weight_list=None)
+        #regularization=regularizer(weights1)+regularizer(weighits2)   ### How to find?
+        #loss=loss+regularization
+        reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+        reg_constant = 0.6  # Choose an appropriate one.
+        loss = loss + reg_constant * sum(reg_losses)
+
+
+        # calculate accuracy
+        correct_prediction = tf.equal(tf.argmax(Y_pred, 1), tf.argmax(Y, 1))   # bool vector consisting of true of false
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))        # changing the bool into real number, then calculating the mean value, which this the accuracy of this batch.
+
+        optimizer = tf.train.AdamOptimizer(learning_rate)
+        train = optimizer.minimize(loss)
+        tf.glorot_uniform_initializer()
+        print("%s graph complete" % (modelName))
+
+
+
+        ### Session ###
+        sess = tf.Session()
+        sess.run(tf.global_variables_initializer())
+        validate_feed={X: self.dm.x_val, Y: self.dm.y_val}
+        accuracy_train=[]
+        accuracy_val=[]
+        step=[]
+        for i in range(num_step):
+            _, l, accuracy_print = sess.run([train, loss,accuracy], feed_dict={X: self.dm.x_train, Y: self.dm.y_train})
+            validate_acc=sess.run(accuracy,feed_dict=validate_feed)
+            if (i % nbatch == 0):
+                step.append(i)
+                accuracy_train.append(accuracy_print)
+                accuracy_val.append(validate_acc)
+                print("Step %d  :  Loss %.9f, accuracy for recent batch % 9f" % (i, l,accuracy_print))
+                print("After %d training step(s), validation accuracy" "using average model is %g" %(i,validate_acc))
+
+        print("Training Done!")
+        y_pred = sess.run(Y_pred, feed_dict={X: self.dm.x_val})
+        y_pred=tf.nn.softmax(y_pred)
+        plt.figure()
+        plt.plot(step, accuracy_train,color='green')
+        plt.plot(step,accuracy_val,color='red')
+        plt.legend()
+        plt.show()
+
+2. Introducing the drop out: 
+
+
+############################# Model 5 ####################################
+class Two_Layer_LSTM(Two_Layer_RNN, object):
+
+    def Single_cell(self):
+        cell = tf.contrib.rnn.BasicLSTMCell(num_units=self.dm.hidden_dim)
+        dropout_lstm=tf.nn.rnn_cell.DropoutWrapper(cell,output_keep_prob=0.3)
+        stacked_lstm=tf.contrib.rnn.MultiRNNCell([dropout_lstm], state_is_tuple=True)
+
+        return stacked_lstm
+
+
+
+3. changing the hiddern layer dimension and window length:
+class Data_manager(object):
+
+    def __init__(self, DF):
+        np.random.seed(1)
+        DF = DF.dropna()
+        DF = DF.drop_duplicates()
+
+        self.x = DF
+        self.y = DF
+
+        self.scalerX = MinMaxScaler(feature_range=(-1, 1))
+        self.scalerY = MinMaxScaler(feature_range=(-1, 1))
+        self.data_dim = self.x.shape[-1]
+        self.output_dim = 3
+        self.batch_size = None
+        self.window_length = 10
+        self.percent_train = 0.6
+        self.hidden_dim = 10
+        # extracting a series to test the accuracy (For the real time case, change this one to the latest time series. )
+        self.latest_x = DF[-200:-self.window_length]
+        
+
+
+
+4. To run the model with drop out: 
+
+start = monotonic()
+
+TwoLSTM = Two_Layer_LSTM()
+TwoLSTM.Architecture("2-layer-LSTM", "Model_05")
+
+
+end = monotonic()
+timer(start, end)
+print(start,end)

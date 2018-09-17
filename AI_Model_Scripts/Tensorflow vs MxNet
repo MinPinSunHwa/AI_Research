@@ -1,0 +1,15 @@
+Source: 
+https://www.slideshare.net/AshishBansal17/tensorflow-vs-mxnet
+
+
+SUMMARY
+• Both are supported by AWS EC2
+• Lots of momentum and support behind TensorFlow 
+• TensorFlow has better RNN capabilities 
+• TensorFlow has better tutorials and online guides. It also has more supporting material like Stack Overflow questions etc. 
+• TensorFlow enjoys greater support on the cloud, and has more deployment options 
+• MxNet has more language bindings, and is usually faster.
+
+
+
+MxNet--github: https://github.com/apache/incubator-mxnet

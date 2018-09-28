@@ -1,0 +1,15 @@
+# Google_Trend_API
+
+from pytrends.request import TrendReq
+import datetime
+from datetime import time, tzinfo, timedelta, datetime
+
+kw_list=['Bitcoin']
+pytrend = TrendReq(hl='en-US', tz=360)
+pytrend.build_payload(kw_list=['Bitcoin'],timeframe='2018-01-25T0 2018-01-26T0')
+interest_over_time_df = pytrend.interest_over_time(  )                       # 8분단위 
+print(interest_over_time_df)
+
+kw_list=['Bitcoin']
+interest_historical_df=pytrend.get_historical_interest(kw_list, year_start=2018, month_start=1, day_start=25, hour_start=1, year_end=2018, month_end=2, day_end=25, hour_end=8, cat=0, geo='', gprop='', sleep=5)
+print(interest_historical_df)                                                # 1시간단위로 나오고 시간조절 가능 
